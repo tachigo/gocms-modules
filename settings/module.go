@@ -1,6 +1,12 @@
 // Package settings 站点配置模块
 // 从 config/site.yaml 加载站点配置，提供公开和管理两套 API
 package settings
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"gocms/internal/core"
@@ -8,20 +14,24 @@ import (
 	"gocms/internal/module/settings/logic"
 )
 
+// init 自注册到全局注册表
+func init() {
+	core.Register(&Module{})
+}
+
 // Module settings 模块实现
 type Module struct {
 	logic *logic.Logic
 }
 
-// New 创建 settings 模块实例
-func New() *Module {
-	return &Module{}
-}
-
 // --- Module 接口（必须实现） ---
 
 func (m *Module) Name() string        { return "settings" }
-func (m *Module) Description() string  { return "站点配置管理" }
+func (m *Module) Description() string { return "站点配置管理" }
+func (m *Module) Version() string     { return "1.0.0" }
+
+// Dependencies 声明依赖
+func (m *Module) Dependencies() []string { return []string{} }
 
 // Init 初始化：从 config/site.yaml 加载站点配置
 func (m *Module) Init(app *core.App) error {

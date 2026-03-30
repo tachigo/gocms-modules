@@ -2,6 +2,12 @@
 // 提供分类体系（词汇表 + 术语）管理功能
 // 依赖 user 模块（通过 JWT 获取操作用户身份）
 package taxonomy
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"gorm.io/gorm"
@@ -19,6 +25,11 @@ type Module struct {
 }
 
 // New 创建 taxonomy 模块实例
+// init 自注册
+func init() {
+	core.Register(&Module{})
+}
+
 func New() *Module {
 	return &Module{}
 }

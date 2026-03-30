@@ -2,6 +2,12 @@
 // 提供 RBAC 角色权限管理：角色 CRUD、权限检查、用户角色分配
 // 向框架注册 RBAC 中间件，供 Admin 路由组使用
 package permission
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"gocms/internal/core"
@@ -10,31 +16,27 @@ import (
 	"gocms/internal/module/permission/model"
 )
 
+// init 自注册到全局注册表
+func init() {
+	core.Register(&Module{})
+}
+
 // Module permission 模块实现
 type Module struct {
 	registry        *core.Registry
 	permissionLogic *logic.PermissionLogic
 }
 
-// New 创建 permission 模块实例
-// 接收 Registry 用于获取所有 Module 的 Schema 声明（构建权限矩阵）
-func New(registry *core.Registry) *Module {
-	return &Module{
-		registry: registry,
-	}
-}
+// --- Module 接口（必须实现） ---
 
-// --- DependencyAware 接口 ---
+func (m *Module) Name() string        { return "permission" }
+func (m *Module) Description() string { return "RBAC 角色权限管理" }
+func (m *Module) Version() string     { return "1.0.0" }
 
 // Dependencies 声明模块依赖
 func (m *Module) Dependencies() []string {
 	return []string{"user"}
 }
-
-// --- Module 接口（必须实现） ---
-
-func (m *Module) Name() string        { return "permission" }
-func (m *Module) Description() string { return "RBAC 角色权限管理" }
 
 // Init 初始化权限模块
 // 1. 数据库迁移（创建 roles/permissions/user_roles 表）

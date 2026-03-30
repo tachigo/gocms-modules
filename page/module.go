@@ -3,6 +3,12 @@
 // 支持草稿/发布状态管理、slug 路由、SEO 元数据
 // 依赖 user 模块（作者身份）和 media 模块（特色图片）
 package page
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"gocms/internal/core"
@@ -17,6 +23,11 @@ type Module struct {
 }
 
 // New 创建 page 模块实例
+// init 自注册
+func init() {
+	core.Register(&Module{})
+}
+
 func New() *Module {
 	return &Module{}
 }

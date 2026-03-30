@@ -2,6 +2,12 @@
 // 提供文章 CRUD、发布状态管理、分类/标签关联
 // 依赖：user, taxonomy, media
 package article
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"gocms/internal/core"
@@ -16,6 +22,11 @@ type Module struct {
 }
 
 // New 创建 article 模块实例
+// init 自注册
+func init() {
+	core.Register(&Module{})
+}
+
 func New() *Module {
 	return &Module{}
 }
@@ -27,6 +38,7 @@ func (m *Module) Name() string { return "article" }
 
 // Description 返回模块描述
 func (m *Module) Description() string { return "文章管理" }
+func (m *Module) Version() string { return "1.0.0" }
 
 // Dependencies 声明模块依赖
 func (m *Module) Dependencies() []string { return []string{"user", "taxonomy", "media"} }

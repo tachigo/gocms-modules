@@ -2,6 +2,12 @@
 // 提供用户认证（JWT）、个人信息管理、用户 CRUD
 // 同时向框架注册 JWT 认证中间件，供 Authenticated 和 Admin 路由组使用
 package user
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"net/http"
@@ -16,21 +22,25 @@ import (
 	"gocms/internal/module/user/model"
 )
 
+// init 自注册到全局注册表
+func init() {
+	core.Register(&Module{})
+}
+
 // Module user 模块实现
 type Module struct {
 	userLogic *logic.UserLogic
 	jwtMgr    *logic.JWTManager
 }
 
-// New 创建 user 模块实例
-func New() *Module {
-	return &Module{}
-}
-
 // --- Module 接口（必须实现） ---
 
 func (m *Module) Name() string        { return "user" }
-func (m *Module) Description() string  { return "用户认证与管理" }
+func (m *Module) Description() string { return "用户认证与管理" }
+func (m *Module) Version() string     { return "1.0.0" }
+
+// Dependencies 声明依赖
+func (m *Module) Dependencies() []string { return []string{} }
 
 // Init 初始化用户模块
 // 1. 数据库迁移（创建 users 表）

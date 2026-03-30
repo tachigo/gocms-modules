@@ -2,6 +2,12 @@
 // 文件上传/存储/文件夹管理
 // 依赖 user 模块（通过 JWT 获取上传者身份）
 package media
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"os"
@@ -15,6 +21,12 @@ import (
 // Module media 模块实现
 type Module struct {
 	logic *logic.Logic
+}
+
+// New 创建 media 模块实例
+// init 自注册到全局注册表
+func init() {
+	core.Register(&Module{})
 }
 
 // New 创建 media 模块实例

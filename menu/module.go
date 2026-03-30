@@ -2,6 +2,12 @@
 // 提供菜单管理功能：树形菜单结构、分组管理、CRUD、排序与移动
 // 依赖 user 模块（用于获取用户信息）
 package menu
+import "gocms/internal/core"
+
+func init() {
+	core.Register(&Module{})
+}
+
 
 import (
 	"gocms/internal/core"
@@ -16,6 +22,11 @@ type Module struct {
 }
 
 // New 创建 menu 模块实例
+// init 自注册
+func init() {
+	core.Register(&Module{})
+}
+
 func New() *Module {
 	return &Module{}
 }
