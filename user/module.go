@@ -35,7 +35,7 @@ func (m *Module) Init(app *core.App) error {
 	if err := app.DB.AutoMigrate(&model.User{}); err != nil {
 		return err
 	}
-	m.jwtMgr = logic.NewJWTManager(app.Config.JWT.Secret, app.Config.JWT.Expire, app.Config.JWT.Issuer)
+	m.jwtMgr = logic.NewJWTManager(app.Config.JWT.Secret, app.Config.JWT.Expire, app.Config.JWT.Issuer, app.Cache)
 	m.userLogic = logic.NewUserLogic(app.DB, m.jwtMgr, app.Events)
 	app.RegisterService("user", m.userLogic)
 	app.AddAuthMiddleware(m.JWTMiddleware)

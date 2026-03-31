@@ -142,6 +142,11 @@ func (l *Logic) Create(article *model.Article, categoryIDs, tagIDs []int64) (*mo
 		return nil
 	})
 
+	// 捕获数据库唯一性冲突错误（竞态条件兜底）
+	if err != nil && l.isDuplicateSlugError(err) {
+		return nil, fmt.Errorf("文章别名(slug)已被使用")
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("创建文章失败: %w", err)
 	}
@@ -220,6 +225,11 @@ func (l *Logic) Update(id int64, article *model.Article, categoryIDs, tagIDs []i
 		}
 		return nil
 	})
+
+	// 捕获数据库唯一性冲突错误（竞态条件兜底）
+	if err != nil && l.isDuplicateSlugError(err) {
+		return nil, fmt.Errorf("文章别名(slug)已被使用")
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("更新文章失败: %w", err)
@@ -343,17 +353,32 @@ func (l *Logic) Unpublish(id int64, userID int64) error {
 // ---------------------------------------------------------------------------
 
 // checkSlugUnique 检查 slug 是否唯一
+// 先进行预检查，再依赖数据库唯一性索引作为兜底
 func (l *Logic) checkSlugUnique(slug string, excludeID int64) error {
 	var count int64
 	query := l.db.Model(&model.Article{}).Where("slug = ?", slug)
 	if excludeID > 0 {
 		query = query.Where("id != ?", excludeID)
 	}
-	query.Count(&count)
+	if err := query.Count(&count).Error; err != nil {
+		return fmt.Errorf("检查 slug 唯一性失败: %w", err)
+	}
 	if count > 0 {
 		return fmt.Errorf("文章别名(slug)已被使用")
 	}
 	return nil
+}
+
+// isDuplicateSlugError 检查是否为数据库 slug 唯一性冲突错误
+func (l *Logic) isDuplicateSlugError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	// SQLite 和 PostgreSQL 的唯一性冲突关键字
+	return strings.Contains(errStr, "UNIQUE constraint failed") || 
+	       strings.Contains(errStr, "unique constraint") ||
+	       strings.Contains(errStr, "duplicate key")
 }
 
 // saveTaxonomies 保存文章-分类/标签关联
