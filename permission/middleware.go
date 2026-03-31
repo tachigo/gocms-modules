@@ -34,13 +34,13 @@ func (m *Module) RBACMiddleware(r *ghttp.Request) {
 	module, action := parseRequestPath(r.URL.Path, r.Method)
 
 	// admin 用户直接放行（超管特权）
-	if m.permissionLogic.IsAdmin(userID) {
+	if m.logic.IsAdmin(userID) {
 		r.Middleware.Next()
 		return
 	}
 
 	// 检查权限
-	hasPerm, scope, err := m.permissionLogic.CheckPermission(userID, module, action)
+	hasPerm, scope, err := m.logic.CheckPermission(userID, module, action)
 	if err != nil {
 		r.Response.Status = http.StatusInternalServerError
 		r.Response.WriteJsonExit(g.Map{
@@ -140,17 +140,17 @@ func parseRequestPath(path, method string) (module, action string) {
 
 // PermissionLogic 返回权限逻辑实例（供其他模块使用）
 func (m *Module) PermissionLogic() *logic.PermissionLogic {
-	return m.permissionLogic
+	return m.logic
 }
 
 // CheckUserPermission 检查指定用户是否有权限（供其他模块调用）
 func (m *Module) CheckUserPermission(userID int64, module, action string) (bool, string, error) {
-	return m.permissionLogic.CheckPermission(userID, module, action)
+	return m.logic.CheckPermission(userID, module, action)
 }
 
 // GetUserRoles 获取用户的角色列表（供其他模块调用）
 func (m *Module) GetUserRoles(userID int64) ([]string, error) {
-	roles, err := m.permissionLogic.GetUserRoles(userID)
+	roles, err := m.logic.GetUserRoles(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,5 +164,5 @@ func (m *Module) GetUserRoles(userID int64) ([]string, error) {
 
 // IsAdmin 检查用户是否是管理员（供其他模块调用）
 func (m *Module) IsAdmin(userID int64) bool {
-	return m.permissionLogic.IsAdmin(userID)
+	return m.logic.IsAdmin(userID)
 }
