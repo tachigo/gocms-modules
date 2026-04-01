@@ -60,7 +60,7 @@ func (l *UserLogic) JWTManager() *JWTManager {
 func (l *UserLogic) Login(username, password string) (string, *model.User, error) {
 	// slave 模式下禁止本地登录
 	if l.mode == "slave" {
-		return nil, nil, &SlaveModeError{Message: "当前系统处于SSO从属模式，请使用SSO系统登录"}
+		return "", nil, &SlaveModeError{Message: "当前系统处于SSO从属模式，请使用SSO系统登录"}
 	}
 
 	var user model.User
