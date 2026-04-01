@@ -9,8 +9,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"gocms/internal/module/page/logic"
-	"gocms/internal/module/page/model"
+	"gocms/module/page/logic"
+	"gocms/module/page/model"
 )
 
 // ---------------------------------------------------------------------------

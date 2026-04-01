@@ -2,7 +2,7 @@
 package article
 
 import (
-	"gocms/internal/core"
+	"gocms/core"
 )
 
 func init() {

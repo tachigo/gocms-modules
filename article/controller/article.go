@@ -10,8 +10,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"gocms/internal/module/article/logic"
-	"gocms/internal/module/article/model"
+	"gocms/module/article/logic"
+	"gocms/module/article/model"
 )
 
 // ---------------------------------------------------------------------------

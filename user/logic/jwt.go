@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	"gocms/core"
+
 	"github.com/golang-jwt/jwt/v5"
-	"gocms/internal/core"
 )
 
 // Claims JWT 载荷

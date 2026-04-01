@@ -6,7 +6,6 @@
 package user
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,10 +13,10 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"gocms/internal/core"
-	"gocms/internal/module/user/controller"
-	"gocms/internal/module/user/logic"
-	"gocms/internal/module/user/model"
+	"gocms/core"
+	"gocms/module/user/controller"
+	"gocms/module/user/logic"
+	"gocms/module/user/model"
 )
 
 // init 自注册到全局注册表
@@ -32,9 +31,9 @@ type Module struct {
 	mode      string // 运行模式: master | slave
 }
 
-func (m *Module) Name() string        { return "user" }
-func (m *Module) Description() string { return "用户认证与管理" }
-func (m *Module) Version() string     { return "1.0.0" }
+func (m *Module) Name() string           { return "user" }
+func (m *Module) Description() string    { return "用户认证与管理" }
+func (m *Module) Version() string        { return "1.0.0" }
 func (m *Module) Dependencies() []string { return []string{} }
 
 // Init 模块初始化
@@ -47,7 +46,7 @@ func (m *Module) Init(app *core.App) error {
 	if m.mode == "" {
 		m.mode = "master"
 	}
-	
+
 	app.Logger.Infof(nil, "[user] 模块运行模式: %s", m.mode)
 
 	// master 模式：执行数据库迁移和初始化
@@ -59,10 +58,10 @@ func (m *Module) Init(app *core.App) error {
 
 	// 初始化 JWT 管理器（两种模式都需要，用于验证本地或SSO颁发的Token）
 	m.jwtMgr = logic.NewJWTManager(app.Config.JWT.Secret, app.Config.JWT.Expire, app.Config.JWT.Issuer, app.Cache)
-	
+
 	// 创建 UserLogic，传入运行模式
 	m.userLogic = logic.NewUserLogic(app.DB, m.jwtMgr, app.Events, m.mode)
-	
+
 	// 注册用户服务
 	app.RegisterService("user", m.userLogic)
 
@@ -93,10 +92,10 @@ func (m *Module) RegisterRoutes(rg *core.RouterGroup) {
 	if m.mode == "master" {
 		rg.Public.Bind(controller.NewAuthPublicController(m.userLogic))
 	}
-	
+
 	// 两种模式都注册受保护的用户信息路由
 	rg.Authenticated.Bind(controller.NewAuthProtectedController(m.userLogic))
-	
+
 	// master 模式：注册管理员路由
 	if m.mode == "master" {
 		rg.Admin.Bind(controller.NewUserAdminController(m.userLogic))
@@ -130,7 +129,7 @@ func (m *Module) JWTMiddleware(r *ghttp.Request) {
 		r.Response.WriteJsonExit(g.Map{"code": 401, "message": "认证失败"})
 		return
 	}
-	
+
 	// 将用户信息注入 context（支持 slave 模式的 GetUserFromCtx）
 	userInfo := &core.UserInfo{
 		ID:       claims.UserID,
@@ -144,11 +143,11 @@ func (m *Module) JWTMiddleware(r *ghttp.Request) {
 // SSOMiddleware SSO 认证中间件（slave 模式使用）
 // 从请求头解析SSO系统传递的用户信息，注入上下文
 // 支持两种SSO集成方式：
-//   1. JWT Token 方式：Authorization 头携带SSO颁发的JWT
-//   2. Header 透传方式：X-SSO-User-ID 等头直接传递用户信息
+//  1. JWT Token 方式：Authorization 头携带SSO颁发的JWT
+//  2. Header 透传方式：X-SSO-User-ID 等头直接传递用户信息
 func (m *Module) SSOMiddleware(r *ghttp.Request) {
 	auth := r.GetHeader("Authorization")
-	
+
 	// 方式1：尝试解析 JWT Token（SSO颁发的令牌）
 	if strings.HasPrefix(auth, "Bearer ") {
 		claims, err := m.jwtMgr.ParseToken(auth[7:])
@@ -163,28 +162,28 @@ func (m *Module) SSOMiddleware(r *ghttp.Request) {
 			return
 		}
 	}
-	
+
 	// 方式2：从 Header 中直接获取SSO透传的用户信息
 	userID := r.GetHeader("X-SSO-User-ID")
 	username := r.GetHeader("X-SSO-Username")
-	
+
 	if userID == "" || username == "" {
 		r.Response.Status = http.StatusUnauthorized
 		r.Response.WriteJsonExit(g.Map{"code": 401, "message": "SSO认证信息缺失"})
 		return
 	}
-	
+
 	// 解析用户ID
 	var uid int64
 	fmt.Sscanf(userID, "%d", &uid)
-	
+
 	userInfo := &core.UserInfo{
 		ID:       uid,
 		Username: username,
 		Email:    r.GetHeader("X-SSO-Email"),
 		Role:     r.GetHeader("X-SSO-Role"),
 	}
-	
+
 	r.SetCtx(core.SetUserToCtx(r.GetCtx(), userInfo))
 	r.SetCtxVar("user_id", uid)
 	r.Middleware.Next()

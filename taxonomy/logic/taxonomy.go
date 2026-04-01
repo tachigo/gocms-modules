@@ -7,8 +7,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"gocms/internal/core"
-	"gocms/internal/module/taxonomy/model"
+	"gocms/core"
+	"gocms/module/taxonomy/model"
 )
 
 // Logic taxonomy 业务逻辑

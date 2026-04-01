@@ -7,8 +7,8 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 
-	"gocms/internal/module/menu/logic"
-	"gocms/internal/module/menu/model"
+	"gocms/module/menu/logic"
+	"gocms/module/menu/model"
 )
 
 // ---------------------------------------------------------------------------

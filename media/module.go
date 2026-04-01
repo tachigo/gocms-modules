@@ -4,10 +4,10 @@ package media
 import (
 	"os"
 
-	"gocms/internal/core"
-	"gocms/internal/module/media/controller"
-	"gocms/internal/module/media/logic"
-	"gocms/internal/module/media/model"
+	"gocms/core"
+	"gocms/module/media/controller"
+	"gocms/module/media/logic"
+	"gocms/module/media/model"
 )
 
 func init() {

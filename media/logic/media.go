@@ -13,8 +13,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"gocms/internal/core"
-	"gocms/internal/module/media/model"
+	"gocms/core"
+	"gocms/module/media/model"
 )
 
 // Logic media 业务逻辑

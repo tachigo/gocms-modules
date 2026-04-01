@@ -8,8 +8,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"gocms/internal/module/permission/logic"
-	"gocms/internal/module/permission/model"
+	"gocms/module/permission/logic"
+	"gocms/module/permission/model"
 )
 
 // ---------------------------------------------------------------------------

@@ -2,9 +2,9 @@
 package settings
 
 import (
-	"gocms/internal/core"
-	"gocms/internal/module/settings/controller"
-	"gocms/internal/module/settings/logic"
+	"gocms/core"
+	"gocms/module/settings/controller"
+	"gocms/module/settings/logic"
 )
 
 func init() {

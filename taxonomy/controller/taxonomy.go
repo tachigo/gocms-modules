@@ -9,7 +9,7 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 
-	"gocms/internal/module/taxonomy/logic"
+	"gocms/module/taxonomy/logic"
 )
 
 // ---------------------------------------------------------------------------

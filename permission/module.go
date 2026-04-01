@@ -3,10 +3,10 @@
 package permission
 
 import (
-	"gocms/internal/core"
-	"gocms/internal/module/permission/controller"
-	"gocms/internal/module/permission/logic"
-	"gocms/internal/module/permission/model"
+	"gocms/core"
+	"gocms/module/permission/controller"
+	"gocms/module/permission/logic"
+	"gocms/module/permission/model"
 )
 
 func init() {

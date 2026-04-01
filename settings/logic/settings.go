@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"gocms/internal/module/settings/model"
+	"gocms/module/settings/model"
 )
 
 // Logic settings 业务逻辑

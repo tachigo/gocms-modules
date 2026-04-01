@@ -13,8 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
-	"gocms/internal/core"
-	"gocms/internal/module/user/model"
+	"gocms/core"
+	"gocms/module/user/model"
 )
 
 // SlaveModeError 表示在 slave 模式下禁止的操作

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 
-	"gocms/internal/module/user/logic"
+	"gocms/module/user/logic"
 )
 
 // ---------------------------------------------------------------------------
@@ -23,11 +23,11 @@ type ListUsersReq struct {
 }
 
 type ListUsersRes struct {
-	g.Meta `mime:"application/json"`
-	List   interface{} `json:"list" dc:"用户列表"`
-	Total  int64       `json:"total" dc:"总数"`
-	Page   int         `json:"page" dc:"当前页"`
-	PageSize int       `json:"page_size" dc:"每页条数"`
+	g.Meta   `mime:"application/json"`
+	List     interface{} `json:"list" dc:"用户列表"`
+	Total    int64       `json:"total" dc:"总数"`
+	Page     int         `json:"page" dc:"当前页"`
+	PageSize int         `json:"page_size" dc:"每页条数"`
 }
 
 // --- 创建用户 ---
@@ -42,7 +42,7 @@ type CreateUserReq struct {
 
 type CreateUserRes struct {
 	g.Meta `mime:"application/json"`
-	ID     int64  `json:"id" dc:"用户ID"`
+	ID     int64 `json:"id" dc:"用户ID"`
 }
 
 // --- 用户详情 ---
@@ -58,12 +58,12 @@ type GetUserRes struct {
 }
 
 type UserDetail struct {
-	ID       int64  `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Nickname string `json:"nickname"`
-	Avatar   string `json:"avatar"`
-	Status   string `json:"status"`
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Nickname  string `json:"nickname"`
+	Avatar    string `json:"avatar"`
+	Status    string `json:"status"`
 	CreatedAt string `json:"created_at"`
 }
 

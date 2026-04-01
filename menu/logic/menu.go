@@ -8,8 +8,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"gocms/internal/core"
-	"gocms/internal/module/menu/model"
+	"gocms/core"
+	"gocms/module/menu/model"
 )
 
 // Logic menu 业务逻辑

@@ -10,7 +10,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"gocms/internal/module/media/logic"
+	"gocms/module/media/logic"
 )
 
 // ---------------------------------------------------------------------------

@@ -9,8 +9,8 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"gorm.io/gorm"
 
-	"gocms/internal/core"
-	"gocms/internal/module/page/model"
+	"gocms/core"
+	"gocms/module/page/model"
 )
 
 // htmlSanitizer 用于过滤 body 字段中的危险 HTML 标签（如 <script>）

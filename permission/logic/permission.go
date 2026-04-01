@@ -9,8 +9,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"gocms/internal/core"
-	"gocms/internal/module/permission/model"
+	"gocms/core"
+	"gocms/module/permission/model"
 )
 
 // PermissionLogic 权限业务逻辑
