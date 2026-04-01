@@ -10,6 +10,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
+	"gocms/internal/core"
 	"gocms/internal/module/user/logic"
 )
 
@@ -142,7 +143,21 @@ func (c *AuthProtectedController) Logout(ctx context.Context, req *LogoutReq) (r
 }
 
 // GetProfile 获取个人信息
+// slave 模式下直接通过 core.GetUserFromCtx(ctx) 获取上下文中的用户信息，不查询数据库
 func (c *AuthProtectedController) GetProfile(ctx context.Context, req *GetProfileReq) (res *GetProfileRes, err error) {
+	// 优先从 Context 获取用户信息（支持 slave 模式）
+	userInfo := core.GetUserFromCtx(ctx)
+	if userInfo != nil {
+		// slave 模式：直接返回 Context 中的用户信息
+		return &GetProfileRes{ProfileData: &ProfileData{
+			ID:       userInfo.ID,
+			Username: userInfo.Username,
+			Email:    userInfo.Email,
+			// slave 模式下 Nickname 和 Avatar 可能为空
+		}}, nil
+	}
+
+	// master 模式：从数据库查询
 	userID := GetCurrentUserID(ctx)
 	if userID == 0 {
 		return nil, fmt.Errorf("未登录")
