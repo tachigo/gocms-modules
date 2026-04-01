@@ -1,0 +1,23 @@
+# user 模块配置
+
+# 运行模式: master | slave
+# - master: 独立运行，拥有完整的用户管理功能（登录/注册/数据库）
+# - slave:  作为SSO客户端运行，依赖上游SSO系统鉴权，不维护本地用户表
+user:
+  mode: master
+
+# SSO 客户端配置（仅在 slave 模式下生效）
+sso:
+  # SSO服务端地址
+  server_url: "https://sso.example.com"
+  # 客户端ID
+  client_id: "gocms-app"
+  # 客户端密钥
+  client_secret: ""
+  # Token验证URL
+  token_verify_url: "/api/v1/token/verify"
+  # 角色映射: SSO角色 -> 本地权限标识
+  role_mapping:
+    admin: "admin"
+    manager: "editor"
+    user: "viewer"

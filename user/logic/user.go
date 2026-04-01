@@ -1,8 +1,12 @@
 // Package logic user 业务逻辑
 // 用户认证、个人信息管理、用户 CRUD
+// 支持两种运行模式：
+//   - master: 独立运行，拥有完整的用户管理功能（登录/注册/数据库）
+//   - slave:  作为SSO客户端运行，依赖上游SSO系统鉴权，不维护本地用户表
 package logic
 
 import (
+	"context"
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
@@ -17,11 +21,13 @@ type UserLogic struct {
 	db     *gorm.DB
 	jwt    *JWTManager
 	events core.EventBus
+	mode   string // 运行模式: master | slave
 }
 
 // NewUserLogic 创建用户逻辑实例
-func NewUserLogic(db *gorm.DB, jwt *JWTManager, events core.EventBus) *UserLogic {
-	return &UserLogic{db: db, jwt: jwt, events: events}
+// mode 参数指定运行模式：master 为独立模式，slave 为SSO从属模式
+func NewUserLogic(db *gorm.DB, jwt *JWTManager, events core.EventBus, mode string) *UserLogic {
+	return &UserLogic{db: db, jwt: jwt, events: events, mode: mode}
 }
 
 // JWTManager 获取 JWT 管理器（供中间件使用）
@@ -34,6 +40,7 @@ func (l *UserLogic) JWTManager() *JWTManager {
 // ---------------------------------------------------------------------------
 
 // Login 用户登录，验证成功返回 JWT Token
+// 仅在 master 模式下可用，slave 模式下登录由SSO系统处理
 func (l *UserLogic) Login(username, password string) (string, *model.User, error) {
 	var user model.User
 	if err := l.db.Where("username = ?", username).First(&user).Error; err != nil {
@@ -72,7 +79,25 @@ func (l *UserLogic) Logout(token string) {
 // ---------------------------------------------------------------------------
 
 // GetProfile 获取用户个人信息
-func (l *UserLogic) GetProfile(userID int64) (*model.User, error) {
+// 根据运行模式决定数据来源：
+//   - master: 从本地数据库查询
+//   - slave:  从 Context 中获取（由SSO中间件注入）
+func (l *UserLogic) GetProfile(ctx context.Context, userID int64) (*model.User, error) {
+	// slave 模式：优先从 Context 获取，不回表查询
+	if l.mode == "slave" {
+		userInfo := core.GetUserFromCtx(ctx)
+		if userInfo == nil {
+			return nil, fmt.Errorf("上下文中无用户信息")
+		}
+		return &model.User{
+			ID:       userInfo.ID,
+			Username: userInfo.Username,
+			Email:    userInfo.Email,
+			// slave 模式下其他字段可能为空，由SSO系统决定
+		}, nil
+	}
+
+	// master 模式：从本地数据库查询
 	var user model.User
 	if err := l.db.First(&user, userID).Error; err != nil {
 		return nil, fmt.Errorf("用户不存在")
@@ -81,7 +106,13 @@ func (l *UserLogic) GetProfile(userID int64) (*model.User, error) {
 }
 
 // UpdateProfile 更新个人信息（昵称、头像）
+// 仅在 master 模式下支持修改，slave 模式下应由SSO系统管理用户信息
 func (l *UserLogic) UpdateProfile(userID int64, nickname, avatar string) error {
+	// slave 模式下禁止修改用户信息，应由SSO系统统一管理
+	if l.mode == "slave" {
+		return fmt.Errorf("slave模式下用户信息由SSO系统管理，禁止本地修改")
+	}
+
 	updates := map[string]interface{}{}
 	if nickname != "" {
 		updates["nickname"] = nickname
@@ -103,7 +134,13 @@ func (l *UserLogic) UpdateProfile(userID int64, nickname, avatar string) error {
 }
 
 // ChangePassword 修改密码
+// 仅在 master 模式下可用，slave 模式下密码管理由SSO系统处理
 func (l *UserLogic) ChangePassword(userID int64, oldPassword, newPassword string) error {
+	// slave 模式下禁止修改密码，应由SSO系统统一管理
+	if l.mode == "slave" {
+		return fmt.Errorf("slave模式下密码由SSO系统管理，禁止本地修改")
+	}
+
 	var user model.User
 	if err := l.db.First(&user, userID).Error; err != nil {
 		return fmt.Errorf("用户不存在")
@@ -136,7 +173,13 @@ func (l *UserLogic) ChangePassword(userID int64, oldPassword, newPassword string
 // ---------------------------------------------------------------------------
 
 // List 用户列表（分页）
+// slave 模式下返回空列表（无本地用户表）
 func (l *UserLogic) List(page, pageSize int) ([]model.User, int64, error) {
+	// slave 模式：无本地用户表，返回空列表
+	if l.mode == "slave" {
+		return []model.User{}, 0, nil
+	}
+
 	var users []model.User
 	var total int64
 
@@ -151,7 +194,13 @@ func (l *UserLogic) List(page, pageSize int) ([]model.User, int64, error) {
 }
 
 // Create 创建用户
+// 仅在 master 模式下可用
 func (l *UserLogic) Create(username, email, password, nickname string) (*model.User, error) {
+	// slave 模式下禁止创建本地用户
+	if l.mode == "slave" {
+		return nil, fmt.Errorf("slave模式下禁止创建本地用户，请使用SSO系统管理用户")
+	}
+
 	// 检查用户名唯一
 	var count int64
 	l.db.Model(&model.User{}).Where("username = ?", username).Count(&count)
@@ -188,7 +237,13 @@ func (l *UserLogic) Create(username, email, password, nickname string) (*model.U
 }
 
 // GetByID 按 ID 获取用户
+// slave 模式下返回错误（无本地用户表）
 func (l *UserLogic) GetByID(id int64) (*model.User, error) {
+	// slave 模式：无本地用户表
+	if l.mode == "slave" {
+		return nil, fmt.Errorf("slave模式下无本地用户表")
+	}
+
 	var user model.User
 	if err := l.db.First(&user, id).Error; err != nil {
 		return nil, fmt.Errorf("用户不存在")
@@ -197,7 +252,13 @@ func (l *UserLogic) GetByID(id int64) (*model.User, error) {
 }
 
 // Update 更新用户信息（管理员）
+// 仅在 master 模式下可用
 func (l *UserLogic) Update(id int64, username, email, nickname, status string) error {
+	// slave 模式下禁止修改
+	if l.mode == "slave" {
+		return fmt.Errorf("slave模式下禁止修改用户信息")
+	}
+
 	updates := map[string]interface{}{}
 	if username != "" {
 		updates["username"] = username
@@ -225,7 +286,13 @@ func (l *UserLogic) Update(id int64, username, email, nickname, status string) e
 }
 
 // Delete 删除用户（软删除）
+// 仅在 master 模式下可用
 func (l *UserLogic) Delete(id int64) error {
+	// slave 模式下禁止删除
+	if l.mode == "slave" {
+		return fmt.Errorf("slave模式下禁止删除用户")
+	}
+
 	result := l.db.Delete(&model.User{}, id)
 	if result.Error != nil {
 		return fmt.Errorf("删除失败: %w", result.Error)
@@ -243,8 +310,13 @@ func (l *UserLogic) Delete(id int64) error {
 // ---------------------------------------------------------------------------
 
 // InitAdmin 初始化默认用户账号（首次启动时）
-// 创建 admin（管理员）、editor（编辑）、author（作者）三个测试账号
+// 仅在 master 模式下执行，slave 模式下跳过
 func (l *UserLogic) InitAdmin() error {
+	// slave 模式：不创建本地管理员账号
+	if l.mode == "slave" {
+		return nil
+	}
+
 	var count int64
 	l.db.Model(&model.User{}).Count(&count)
 	if count > 0 {

@@ -148,7 +148,7 @@ func (c *AuthProtectedController) GetProfile(ctx context.Context, req *GetProfil
 		return nil, fmt.Errorf("未登录")
 	}
 
-	user, err := c.logic.GetProfile(userID)
+	user, err := c.logic.GetProfile(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
