@@ -137,6 +137,7 @@ func (m *Module) JWTMiddleware(r *ghttp.Request) {
 		Username: claims.Username,
 	}
 	r.SetCtx(core.SetUserToCtx(r.GetCtx(), userInfo))
+	r.SetCtxVar("user_id", claims.UserID)
 	r.Middleware.Next()
 }
 
@@ -185,5 +186,6 @@ func (m *Module) SSOMiddleware(r *ghttp.Request) {
 	}
 	
 	r.SetCtx(core.SetUserToCtx(r.GetCtx(), userInfo))
+	r.SetCtxVar("user_id", uid)
 	r.Middleware.Next()
 }
