@@ -1,5 +1,6 @@
 // Package permission RBAC 中间件
 // 拦截 Admin 路由进行权限检查
+// 支持本地角色权限和 SSO 角色映射的并集策略
 package permission
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
+	"gocms/internal/core"
 	"gocms/internal/module/permission/logic"
 )
 
@@ -17,7 +19,8 @@ import (
 // ---------------------------------------------------------------------------
 
 // RBACMiddleware RBAC 权限检查中间件
-// 从 JWT 中提取用户信息，检查是否有权限访问当前资源
+// 从 JWT/SSO 中提取用户信息，检查是否有权限访问当前资源
+// 采用并集策略：本地角色权限 + SSO 角色映射权限
 func (m *Module) RBACMiddleware(r *ghttp.Request) {
 	// 获取当前用户 ID
 	userID := r.GetCtxVar("user_id").Int64()
@@ -30,17 +33,25 @@ func (m *Module) RBACMiddleware(r *ghttp.Request) {
 		return
 	}
 
+	// 从 Context 获取 SSO 角色信息（由 SSO 中间件注入）
+	userInfo := core.GetUserFromCtx(r.GetCtx())
+	ssoRole := ""
+	if userInfo != nil {
+		ssoRole = userInfo.Role
+	}
+
 	// 解析请求路径，确定目标 Module 和 Action
 	module, action := parseRequestPath(r.URL.Path, r.Method)
 
-	// admin 用户直接放行（超管特权）
-	if m.logic.IsAdmin(userID) {
+	// 检查是否是管理员（并集策略：本地角色为 admin 或 SSO 角色映射到 admin）
+	if m.logic.IsAdmin(userID, ssoRole) {
 		r.Middleware.Next()
 		return
 	}
 
-	// 检查权限
-	hasPerm, scope, err := m.logic.CheckPermission(userID, module, action)
+	// 检查权限（并集策略：本地角色权限 + SSO 角色映射权限）
+	// 优先检查 SSO 角色映射，减少数据库 IO
+	hasPerm, scope, err := m.logic.CheckPermission(userID, module, action, ssoRole)
 	if err != nil {
 		r.Response.Status = http.StatusInternalServerError
 		r.Response.WriteJsonExit(g.Map{
@@ -144,8 +155,9 @@ func (m *Module) PermissionLogic() *logic.PermissionLogic {
 }
 
 // CheckUserPermission 检查指定用户是否有权限（供其他模块调用）
-func (m *Module) CheckUserPermission(userID int64, module, action string) (bool, string, error) {
-	return m.logic.CheckPermission(userID, module, action)
+// ssoRole: SSO 角色名（可为空）
+func (m *Module) CheckUserPermission(userID int64, module, action, ssoRole string) (bool, string, error) {
+	return m.logic.CheckPermission(userID, module, action, ssoRole)
 }
 
 // GetUserRoles 获取用户的角色列表（供其他模块调用）
@@ -163,6 +175,7 @@ func (m *Module) GetUserRoles(userID int64) ([]string, error) {
 }
 
 // IsAdmin 检查用户是否是管理员（供其他模块调用）
-func (m *Module) IsAdmin(userID int64) bool {
-	return m.logic.IsAdmin(userID)
+// ssoRole: SSO 角色名（可为空）
+func (m *Module) IsAdmin(userID int64, ssoRole string) bool {
+	return m.logic.IsAdmin(userID, ssoRole)
 }

@@ -1,5 +1,6 @@
 // Package logic permission 业务逻辑
 // RBAC 角色权限管理：角色 CRUD、权限检查、用户角色管理
+// 支持本地角色和 SSO 角色映射的并集策略
 package logic
 
 import (
@@ -17,26 +18,36 @@ type PermissionLogic struct {
 	db       *gorm.DB
 	events   core.EventBus
 	schemas  map[string]core.ModuleSchema
+	// roleMapping SSO 角色到本地角色的映射表
+	// key: SSO 角色名, value: 本地角色名
+	roleMapping map[string]string
 
 	// 缓存（内存级，后续可接入 Redis）
-	mu           sync.RWMutex
-	roleCache    map[int64]*model.Role              // role_id → Role
-	permCache    map[int64][]model.Permission       // role_id → Permissions
-	userRoleCache map[int64][]int64                 // user_id → role_ids
+	mu            sync.RWMutex
+	roleCache     map[int64]*model.Role         // role_id → Role
+	permCache     map[int64][]model.Permission  // role_id → Permissions
+	userRoleCache map[int64][]int64             // user_id → role_ids
 }
 
 // Logic 是 PermissionLogic 的别名，用于 controller 引用
 type Logic = PermissionLogic
 
 // New 创建权限逻辑实例（别名函数）
-func New(db *gorm.DB, events core.EventBus, schemas map[string]core.ModuleSchema) *Logic {
-	return NewPermissionLogic(db, events, schemas)
+func New(db *gorm.DB, events core.EventBus, schemas map[string]core.ModuleSchema, roleMapping map[string]string) *Logic {
+	return NewPermissionLogic(db, events, schemas, roleMapping)
 }
-func NewPermissionLogic(db *gorm.DB, events core.EventBus, schemas map[string]core.ModuleSchema) *PermissionLogic {
+
+// NewPermissionLogic 创建权限逻辑实例
+// roleMapping: SSO 角色到本地角色的映射表，可为 nil
+func NewPermissionLogic(db *gorm.DB, events core.EventBus, schemas map[string]core.ModuleSchema, roleMapping map[string]string) *PermissionLogic {
+	if roleMapping == nil {
+		roleMapping = make(map[string]string)
+	}
 	return &PermissionLogic{
 		db:            db,
 		events:        events,
 		schemas:       schemas,
+		roleMapping:   roleMapping,
 		roleCache:     make(map[int64]*model.Role),
 		permCache:     make(map[int64][]model.Permission),
 		userRoleCache: make(map[int64][]int64),
@@ -230,7 +241,7 @@ func (l *PermissionLogic) initViewerPermissions() error {
 }
 
 // assignSeedUserRoles 为种子用户分配角色
-// 映射关系：admin→admin角色, editor→editor角色, author→viewer角色
+// 映射关系：admin→admin角色, editor→editor角色, author→author角色
 func (l *PermissionLogic) assignSeedUserRoles() error {
 	// username → role name 映射
 	seedMapping := []struct {
@@ -551,22 +562,42 @@ func (l *PermissionLogic) RemoveRoleFromUser(userID, roleID int64) error {
 }
 
 // ---------------------------------------------------------------------------
-// 权限检查
+// 权限检查（核心）
 // ---------------------------------------------------------------------------
 
 // CheckPermission 检查用户是否有指定权限
+// 采用并集策略：本地角色权限 + SSO 角色映射权限
 // userID: 用户ID
 // module: 模块名
 // action: 操作
+// ssoRole: SSO 角色名（可为空）
 // returns: hasPermission, scope (own/all), error
-func (l *PermissionLogic) CheckPermission(userID int64, module, action string) (bool, string, error) {
-	// 获取用户的所有角色
+func (l *PermissionLogic) CheckPermission(userID int64, module, action, ssoRole string) (bool, string, error) {
+	// 优先检查 SSO 角色映射（性能优化：减少数据库 IO）
+	if ssoRole != "" {
+		if localRoleName, exists := l.roleMapping[ssoRole]; exists {
+			// 查询映射的本地角色
+			var mappedRole model.Role
+			if err := l.db.Where("name = ?", localRoleName).First(&mappedRole).Error; err == nil {
+				// 检查映射角色的权限
+				if mappedRole.Name == "admin" {
+					return true, "all", nil
+				}
+				hasPerm, scope := l.checkRolePermission(mappedRole.ID, module, action)
+				if hasPerm {
+					return true, scope, nil
+				}
+			}
+		}
+	}
+
+	// 获取用户的本地角色
 	roles, err := l.GetUserRoles(userID)
 	if err != nil {
 		return false, "", err
 	}
 
-	// 检查每个角色的权限
+	// 检查本地角色的权限
 	for _, role := range roles {
 		// admin 角色拥有所有权限
 		if role.Name == "admin" {
@@ -581,6 +612,19 @@ func (l *PermissionLogic) CheckPermission(userID int64, module, action string) (
 	}
 
 	return false, "", nil
+}
+
+// CheckPermissionWithContext 检查用户权限（带上下文）
+// 从 Context 中自动提取 UserInfo.Role 进行 SSO 角色映射
+func (l *PermissionLogic) CheckPermissionWithContext(ctx core.Context, userID int64, module, action string) (bool, string, error) {
+	// 从 Context 获取 SSO 角色
+	userInfo := core.GetUserFromCtx(ctx)
+	ssoRole := ""
+	if userInfo != nil {
+		ssoRole = userInfo.Role
+	}
+
+	return l.CheckPermission(userID, module, action, ssoRole)
 }
 
 // checkRolePermission 检查角色是否有指定权限（内部方法，带缓存）
@@ -613,7 +657,18 @@ func (l *PermissionLogic) checkRolePermission(roleID int64, module, action strin
 }
 
 // IsAdmin 检查用户是否是管理员
-func (l *PermissionLogic) IsAdmin(userID int64) bool {
+// 采用并集策略：本地角色为 admin 或 SSO 角色映射到 admin
+func (l *PermissionLogic) IsAdmin(userID int64, ssoRole string) bool {
+	// 优先检查 SSO 角色映射（性能优化）
+	if ssoRole != "" {
+		if localRoleName, exists := l.roleMapping[ssoRole]; exists {
+			if localRoleName == "admin" {
+				return true
+			}
+		}
+	}
+
+	// 检查本地角色
 	roles, err := l.GetUserRoles(userID)
 	if err != nil {
 		return false
@@ -626,6 +681,19 @@ func (l *PermissionLogic) IsAdmin(userID int64) bool {
 	}
 
 	return false
+}
+
+// IsAdminWithContext 检查用户是否是管理员（带上下文）
+// 从 Context 中自动提取 UserInfo.Role 进行 SSO 角色映射
+func (l *PermissionLogic) IsAdminWithContext(ctx core.Context, userID int64) bool {
+	// 从 Context 获取 SSO 角色
+	userInfo := core.GetUserFromCtx(ctx)
+	ssoRole := ""
+	if userInfo != nil {
+		ssoRole = userInfo.Role
+	}
+
+	return l.IsAdmin(userID, ssoRole)
 }
 
 // GetAllAvailablePermissions 获取所有可用权限（来自各 Module Schema）
@@ -645,8 +713,8 @@ func (l *PermissionLogic) GetAllAvailablePermissions() []PermissionGroup {
 
 // PermissionGroup 权限分组（按模块）
 type PermissionGroup struct {
-	Module      string                `json:"module"`
-	Permissions []core.PermissionDef  `json:"permissions"`
+	Module      string               `json:"module"`
+	Permissions []core.PermissionDef `json:"permissions"`
 }
 
 // ---------------------------------------------------------------------------
