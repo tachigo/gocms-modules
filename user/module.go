@@ -7,6 +7,7 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -186,6 +187,3 @@ func (m *Module) SSOMiddleware(r *ghttp.Request) {
 	r.SetCtx(core.SetUserToCtx(r.GetCtx(), userInfo))
 	r.Middleware.Next()
 }
-
-// 需要引入 fmt 包用于 Sscanf
-import "fmt"

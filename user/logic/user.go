@@ -8,6 +8,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -15,6 +16,21 @@ import (
 	"gocms/internal/core"
 	"gocms/internal/module/user/model"
 )
+
+// SlaveModeError 表示在 slave 模式下禁止的操作
+// 用于向前端返回 403 状态码和友好的错误信息
+type SlaveModeError struct {
+	Message string
+}
+
+func (e *SlaveModeError) Error() string {
+	return e.Message
+}
+
+// HTTPStatus 返回 HTTP 状态码 403 Forbidden
+func (e *SlaveModeError) HTTPStatus() int {
+	return http.StatusForbidden
+}
 
 // UserLogic 用户业务逻辑
 type UserLogic struct {
@@ -42,6 +58,11 @@ func (l *UserLogic) JWTManager() *JWTManager {
 // Login 用户登录，验证成功返回 JWT Token
 // 仅在 master 模式下可用，slave 模式下登录由SSO系统处理
 func (l *UserLogic) Login(username, password string) (string, *model.User, error) {
+	// slave 模式下禁止本地登录
+	if l.mode == "slave" {
+		return nil, nil, &SlaveModeError{Message: "当前系统处于SSO从属模式，请使用SSO系统登录"}
+	}
+
 	var user model.User
 	if err := l.db.Where("username = ?", username).First(&user).Error; err != nil {
 		return "", nil, fmt.Errorf("用户名或密码错误")
@@ -110,7 +131,7 @@ func (l *UserLogic) GetProfile(ctx context.Context, userID int64) (*model.User, 
 func (l *UserLogic) UpdateProfile(userID int64, nickname, avatar string) error {
 	// slave 模式下禁止修改用户信息，应由SSO系统统一管理
 	if l.mode == "slave" {
-		return fmt.Errorf("slave模式下用户信息由SSO系统管理，禁止本地修改")
+		return &SlaveModeError{Message: "SSO从属模式下用户信息由SSO系统统一管理，禁止本地修改"}
 	}
 
 	updates := map[string]interface{}{}
@@ -138,7 +159,7 @@ func (l *UserLogic) UpdateProfile(userID int64, nickname, avatar string) error {
 func (l *UserLogic) ChangePassword(userID int64, oldPassword, newPassword string) error {
 	// slave 模式下禁止修改密码，应由SSO系统统一管理
 	if l.mode == "slave" {
-		return fmt.Errorf("slave模式下密码由SSO系统管理，禁止本地修改")
+		return &SlaveModeError{Message: "SSO从属模式下密码由SSO系统统一管理，禁止本地修改"}
 	}
 
 	var user model.User
@@ -198,7 +219,7 @@ func (l *UserLogic) List(page, pageSize int) ([]model.User, int64, error) {
 func (l *UserLogic) Create(username, email, password, nickname string) (*model.User, error) {
 	// slave 模式下禁止创建本地用户
 	if l.mode == "slave" {
-		return nil, fmt.Errorf("slave模式下禁止创建本地用户，请使用SSO系统管理用户")
+		return nil, &SlaveModeError{Message: "SSO从属模式下禁止创建本地用户，请使用SSO系统管理用户"}
 	}
 
 	// 检查用户名唯一
@@ -237,13 +258,24 @@ func (l *UserLogic) Create(username, email, password, nickname string) (*model.U
 }
 
 // GetByID 按 ID 获取用户
-// slave 模式下返回错误（无本地用户表）
-func (l *UserLogic) GetByID(id int64) (*model.User, error) {
-	// slave 模式：无本地用户表
+// slave 模式下优先从 Context 获取，如果 Context 中无用户信息或ID不匹配，则返回错误
+func (l *UserLogic) GetByID(ctx context.Context, id int64) (*model.User, error) {
+	// slave 模式：优先从 Context 获取用户信息
 	if l.mode == "slave" {
-		return nil, fmt.Errorf("slave模式下无本地用户表")
+		userInfo := core.GetUserFromCtx(ctx)
+		if userInfo != nil && userInfo.ID == id {
+			// Context 中有匹配的用户信息，直接返回
+			return &model.User{
+				ID:       userInfo.ID,
+				Username: userInfo.Username,
+				Email:    userInfo.Email,
+			}, nil
+		}
+		// Context 中无用户信息或ID不匹配，返回 403 错误
+		return nil, &SlaveModeError{Message: "SSO从属模式下无法查询其他用户信息，请联系SSO系统管理员"}
 	}
 
+	// master 模式：从本地数据库查询
 	var user model.User
 	if err := l.db.First(&user, id).Error; err != nil {
 		return nil, fmt.Errorf("用户不存在")
@@ -256,7 +288,7 @@ func (l *UserLogic) GetByID(id int64) (*model.User, error) {
 func (l *UserLogic) Update(id int64, username, email, nickname, status string) error {
 	// slave 模式下禁止修改
 	if l.mode == "slave" {
-		return fmt.Errorf("slave模式下禁止修改用户信息")
+		return &SlaveModeError{Message: "SSO从属模式下禁止修改用户信息，请使用SSO系统管理用户"}
 	}
 
 	updates := map[string]interface{}{}
@@ -290,7 +322,7 @@ func (l *UserLogic) Update(id int64, username, email, nickname, status string) e
 func (l *UserLogic) Delete(id int64) error {
 	// slave 模式下禁止删除
 	if l.mode == "slave" {
-		return fmt.Errorf("slave模式下禁止删除用户")
+		return &SlaveModeError{Message: "SSO从属模式下禁止删除用户，请使用SSO系统管理用户"}
 	}
 
 	result := l.db.Delete(&model.User{}, id)

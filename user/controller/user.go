@@ -132,7 +132,7 @@ func (c *UserAdminController) CreateUser(ctx context.Context, req *CreateUserReq
 
 // GetUser 用户详情
 func (c *UserAdminController) GetUser(ctx context.Context, req *GetUserReq) (res *GetUserRes, err error) {
-	user, err := c.logic.GetByID(req.ID)
+	user, err := c.logic.GetByID(ctx, req.ID)
 	if err != nil {
 		return nil, err
 	}
