@@ -168,7 +168,7 @@ func (m *Module) SSOMiddleware(r *ghttp.Request) {
 
 	// 方式2：从 Header 中直接获取SSO透传的用户信息
 	userID := r.GetHeader("X-SSO-User-ID")
-	username := r.GetHeader("X-SSO-Username")
+	username := r.GetHeader("X-SSO-User-Name")
 
 	if userID == "" || username == "" {
 		r.Response.Status = http.StatusUnauthorized
@@ -183,8 +183,8 @@ func (m *Module) SSOMiddleware(r *ghttp.Request) {
 	userInfo := &core.UserInfo{
 		ID:       uid,
 		Username: username,
-		Email:    r.GetHeader("X-SSO-Email"),
-		Role:     r.GetHeader("X-SSO-Role"),
+		Email:    r.GetHeader("X-SSO-User-Email"),
+		Role:     r.GetHeader("X-SSO-User-Role"),
 	}
 
 	r.SetCtx(core.SetUserToCtx(r.GetCtx(), userInfo))
