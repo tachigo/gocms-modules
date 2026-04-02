@@ -16,18 +16,18 @@ import (
 
 // PermissionLogic 权限业务逻辑
 type PermissionLogic struct {
-	db       *gorm.DB
-	events   core.EventBus
-	schemas  map[string]core.ModuleSchema
+	db      *gorm.DB
+	events  core.EventBus
+	schemas map[string]core.ModuleSchema
 	// roleMapping SSO 角色到本地角色的映射表
 	// key: SSO 角色名, value: 本地角色名
 	roleMapping map[string]string
 
 	// 缓存（内存级，后续可接入 Redis）
 	mu            sync.RWMutex
-	roleCache     map[int64]*model.Role         // role_id → Role
-	permCache     map[int64][]model.Permission  // role_id → Permissions
-	userRoleCache map[int64][]int64             // user_id → role_ids
+	roleCache     map[int64]*model.Role        // role_id → Role
+	permCache     map[int64][]model.Permission // role_id → Permissions
+	userRoleCache map[int64][]int64            // user_id → role_ids
 }
 
 // Logic 是 PermissionLogic 的别名，用于 controller 引用
