@@ -100,6 +100,9 @@ func (m *Module) RegisterRoutes(rg *core.RouterGroup) {
 	if m.mode == "master" {
 		rg.Admin.Bind(controller.NewUserAdminController(m.userLogic))
 	}
+
+	// 注册 SSO 测试路由（两种模式都可用，用于验证）
+	rg.Admin.Bind(controller.NewSSOTestController())
 }
 
 func (m *Module) Schema() core.ModuleSchema {

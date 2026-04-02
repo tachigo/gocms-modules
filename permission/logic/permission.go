@@ -5,6 +5,7 @@ package logic
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"gorm.io/gorm"
@@ -570,22 +571,30 @@ func (l *PermissionLogic) RemoveRoleFromUser(userID, roleID int64) error {
 // userID: 用户ID
 // module: 模块名
 // action: 操作
-// ssoRole: SSO 角色名（可为空）
+// ssoRole: SSO 角色名（可为空，支持逗号分隔的多角色，如 "sso_manager,sso_editor"）
 // returns: hasPermission, scope (own/all), error
 func (l *PermissionLogic) CheckPermission(userID int64, module, action, ssoRole string) (bool, string, error) {
 	// 优先检查 SSO 角色映射（性能优化：减少数据库 IO）
+	// 支持逗号分隔的多角色格式
 	if ssoRole != "" {
-		if localRoleName, exists := l.roleMapping[ssoRole]; exists {
-			// 查询映射的本地角色
-			var mappedRole model.Role
-			if err := l.db.Where("name = ?", localRoleName).First(&mappedRole).Error; err == nil {
-				// 检查映射角色的权限
-				if mappedRole.Name == "admin" {
-					return true, "all", nil
-				}
-				hasPerm, scope := l.checkRolePermission(mappedRole.ID, module, action)
-				if hasPerm {
-					return true, scope, nil
+		ssoRoles := strings.Split(ssoRole, ",")
+		for _, role := range ssoRoles {
+			role = strings.TrimSpace(role)
+			if role == "" {
+				continue
+			}
+			if localRoleName, exists := l.roleMapping[role]; exists {
+				// 查询映射的本地角色
+				var mappedRole model.Role
+				if err := l.db.Where("name = ?", localRoleName).First(&mappedRole).Error; err == nil {
+					// 检查映射角色的权限
+					if mappedRole.Name == "admin" {
+						return true, "all", nil
+					}
+					hasPerm, scope := l.checkRolePermission(mappedRole.ID, module, action)
+					if hasPerm {
+						return true, scope, nil
+					}
 				}
 			}
 		}
@@ -658,12 +667,20 @@ func (l *PermissionLogic) checkRolePermission(roleID int64, module, action strin
 
 // IsAdmin 检查用户是否是管理员
 // 采用并集策略：本地角色为 admin 或 SSO 角色映射到 admin
+// ssoRole: 支持逗号分隔的多角色，如 "sso_manager,sso_editor"
 func (l *PermissionLogic) IsAdmin(userID int64, ssoRole string) bool {
 	// 优先检查 SSO 角色映射（性能优化）
 	if ssoRole != "" {
-		if localRoleName, exists := l.roleMapping[ssoRole]; exists {
-			if localRoleName == "admin" {
-				return true
+		ssoRoles := strings.Split(ssoRole, ",")
+		for _, role := range ssoRoles {
+			role = strings.TrimSpace(role)
+			if role == "" {
+				continue
+			}
+			if localRoleName, exists := l.roleMapping[role]; exists {
+				if localRoleName == "admin" {
+					return true
+				}
 			}
 		}
 	}
