@@ -43,11 +43,11 @@ func (c *SSOTestController) SSOTest(r *ghttp.Request) (*SSOTestRes, error) {
 
 	// 收集原始 SSO Header
 	rawHeaders := map[string]string{
-		"X-SSO-User-ID":   r.GetHeader("X-SSO-User-ID"),
-		"X-SSO-Username":  r.GetHeader("X-SSO-Username"),
-		"X-SSO-Email":     r.GetHeader("X-SSO-Email"),
-		"X-SSO-Role":      r.GetHeader("X-SSO-Role"),
-		"Authorization":   r.GetHeader("Authorization"),
+		"X-SSO-User-ID":    r.GetHeader("X-SSO-User-ID"),
+		"X-SSO-User-Name":  r.GetHeader("X-SSO-User-Name"),
+		"X-SSO-User-Email": r.GetHeader("X-SSO-User-Email"),
+		"X-SSO-User-Role":  r.GetHeader("X-SSO-User-Role"),
+		"Authorization":    r.GetHeader("Authorization"),
 	}
 
 	return &SSOTestRes{
