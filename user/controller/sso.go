@@ -3,8 +3,9 @@
 package controller
 
 import (
+	"context"
+
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/net/ghttp"
 
 	"gocms/core"
 )
@@ -19,9 +20,9 @@ type SSOTestReq struct {
 
 type SSOTestRes struct {
 	g.Meta      `mime:"application/json"`
-	UserInfo    *core.UserInfo `json:"user_info" dc:"从Context提取的用户信息"`
+	UserInfo    *core.UserInfo    `json:"user_info" dc:"从Context提取的用户信息"`
 	RawHeaders  map[string]string `json:"raw_headers" dc:"原始请求头（SSO相关）"`
-	Mode        string         `json:"mode" dc:"当前运行模式"`
+	Mode        string            `json:"mode" dc:"当前运行模式"`
 }
 
 // SSOTestController SSO测试控制器
@@ -37,9 +38,12 @@ func NewSSOTestController() *SSOTestController {
 // 1. SSOMiddleware 是否正确解析了 Header
 // 2. UserInfo 是否正确注入 Context
 // 3. 多角色格式是否正确处理
-func (c *SSOTestController) SSOTest(r *ghttp.Request) (*SSOTestRes, error) {
+func (c *SSOTestController) SSOTest(ctx context.Context, req *SSOTestReq) (*SSOTestRes, error) {
 	// 从 Context 提取用户信息
-	userInfo := core.GetUserFromCtx(r.GetCtx())
+	userInfo := core.GetUserFromCtx(ctx)
+
+	// 获取原始请求对象以读取 headers
+	r := g.RequestFromCtx(ctx)
 
 	// 收集原始 SSO Header
 	rawHeaders := map[string]string{
