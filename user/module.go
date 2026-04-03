@@ -184,10 +184,26 @@ func (m *Module) SSOMiddleware(r *ghttp.Request) {
 		ID:       uid,
 		Username: username,
 		Email:    r.GetHeader("X-SSO-User-Email"),
-		Role:     r.GetHeader("X-SSO-User-Role"),
+		Roles:    parseRoles(r.GetHeader("X-SSO-User-Roles")),
 	}
 
 	r.SetCtx(core.SetUserToCtx(r.GetCtx(), userInfo))
 	r.SetCtxVar("user_id", uid)
 	r.Middleware.Next()
+}
+
+// parseRoles 解析多角色字符串，支持逗号分隔
+func parseRoles(rolesStr string) []string {
+	if rolesStr == "" {
+		return nil
+	}
+	parts := strings.Split(rolesStr, ",")
+	var roles []string
+	for _, r := range parts {
+		r = strings.TrimSpace(r)
+		if r != "" {
+			roles = append(roles, r)
+		}
+	}
+	return roles
 }
