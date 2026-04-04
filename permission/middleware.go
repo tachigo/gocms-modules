@@ -36,8 +36,8 @@ func (m *Module) RBACMiddleware(r *ghttp.Request) {
 	// 从 Context 获取 SSO 角色信息（由 SSO 中间件注入）
 	userInfo := core.GetUserFromCtx(r.GetCtx())
 	ssoRole := ""
-	if userInfo != nil {
-		ssoRole = userInfo.Role
+	if userInfo != nil && len(userInfo.Roles) > 0 {
+		ssoRole = strings.Join(userInfo.Roles, ",")
 	}
 
 	// 解析请求路径，确定目标 Module 和 Action

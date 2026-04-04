@@ -4,6 +4,7 @@
 package logic
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -624,13 +625,13 @@ func (l *PermissionLogic) CheckPermission(userID int64, module, action, ssoRole 
 }
 
 // CheckPermissionWithContext 检查用户权限（带上下文）
-// 从 Context 中自动提取 UserInfo.Role 进行 SSO 角色映射
-func (l *PermissionLogic) CheckPermissionWithContext(ctx core.Context, userID int64, module, action string) (bool, string, error) {
+// 从 Context 中自动提取 UserInfo.Roles 进行 SSO 角色映射
+func (l *PermissionLogic) CheckPermissionWithContext(ctx context.Context, userID int64, module, action string) (bool, string, error) {
 	// 从 Context 获取 SSO 角色
 	userInfo := core.GetUserFromCtx(ctx)
 	ssoRole := ""
-	if userInfo != nil {
-		ssoRole = userInfo.Role
+	if userInfo != nil && len(userInfo.Roles) > 0 {
+		ssoRole = strings.Join(userInfo.Roles, ",")
 	}
 
 	return l.CheckPermission(userID, module, action, ssoRole)
@@ -701,13 +702,13 @@ func (l *PermissionLogic) IsAdmin(userID int64, ssoRole string) bool {
 }
 
 // IsAdminWithContext 检查用户是否是管理员（带上下文）
-// 从 Context 中自动提取 UserInfo.Role 进行 SSO 角色映射
-func (l *PermissionLogic) IsAdminWithContext(ctx core.Context, userID int64) bool {
+// 从 Context 中自动提取 UserInfo.Roles 进行 SSO 角色映射
+func (l *PermissionLogic) IsAdminWithContext(ctx context.Context, userID int64) bool {
 	// 从 Context 获取 SSO 角色
 	userInfo := core.GetUserFromCtx(ctx)
 	ssoRole := ""
-	if userInfo != nil {
-		ssoRole = userInfo.Role
+	if userInfo != nil && len(userInfo.Roles) > 0 {
+		ssoRole = strings.Join(userInfo.Roles, ",")
 	}
 
 	return l.IsAdmin(userID, ssoRole)
